@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Certificate Finder</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center">UW-Madison Certificate Finder</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Upload DARS Report</h2>
+            <div id="uploadStatus" class="hidden mb-4 p-4 rounded-lg text-center"></div>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input type="file" accept=".pdf" class="hidden" id="fileInput">
+                <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
+                    Drop your DARS PDF here or click to upload
+                </label>
+                <p class="text-sm text-gray-500 mt-2">Only PDF files are accepted</p>
+            </div>
+        </div>
+
+        <div id="results" class="hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Course List</h2>
+                <div id="courseList" class="overflow-x-auto">
+                    <table class="min-w-full table-auto">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Term</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="courseTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showUploadStatus(message, isSuccess) {
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+            if (isSuccess) {
+                statusDiv.classList.add('bg-green-100', 'text-green-700');
+            } else {
+                statusDiv.classList.add('bg-red-100', 'text-red-700');
+            }
+            statusDiv.classList.remove('hidden');
+        }
+
+        async function processFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showUploadStatus('Uploading...', true);
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    showUploadStatus(data.error, false);
+                    return;
+                }
+
+                showUploadStatus('Upload Complete! Analyzing your courses...', true);
+                displayResults(data);
+            } catch (error) {
+                console.error('Error:', error);
+                showUploadStatus('An error occurred while processing the file.', false);
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('results').classList.remove('hidden');
+            const courseTableBody = document.getElementById('courseTableBody');
+            courseTableBody.innerHTML = '';
+
+            // Sort courses by term and department
+            data.courses.sort((a, b) => {
+                if (a.term !== b.term) return a.term.localeCompare(b.term);
+                return a.department.localeCompare(b.department);
+            });
+
+            data.courses.forEach(course => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${course.term}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${course.department}${course.number}</td>
+                    <td class="px-6 py-4">${course.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${course.credits}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${course.grade}</td>
+                `;
+                courseTableBody.appendChild(row);
+            });
+        }
+
+        // File input change handler
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        // Drag and drop handling
+        const dropZone = document.querySelector('.border-dashed');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('border-blue-500');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-blue-500');
+        }
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+    </script>
+</body>
+</html>

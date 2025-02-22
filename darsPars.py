@@ -13,7 +13,7 @@ class Course:
     name: str
     term: str = ""
 
-def extract_courses_from_pdf(pdf_path: str) -> List[Course]:
+def darsProcessor(pdf_path: str) -> List[Course]:
     # Read PDF
     with open(pdf_path, 'rb') as file:
         pdf_reader = PyPDF2.PdfReader(file)
@@ -81,7 +81,7 @@ def main():
     pdf_path = os.path.join(home_dir, "Downloads", "audit.pdf")
     
     try:
-        courses = extract_courses_from_pdf(pdf_path)
+        courses = darsProcessor(pdf_path)
         print_courses_by_department(courses)
     except FileNotFoundError:
         print(f"Could not find PDF file at {pdf_path}")
