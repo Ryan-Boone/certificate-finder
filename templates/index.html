@@ -11,17 +11,30 @@
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">Upload DARS Report</h2>
             <div id="uploadStatus" class="hidden mb-4 p-4 rounded-lg text-center"></div>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input type="file" accept=".pdf" class="hidden" id="fileInput">
-                <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
-                    Drop your DARS PDF here or click to upload
-                </label>
-                <p class="text-sm text-gray-500 mt-2">Only PDF files are accepted</p>
-            </div>
+            <form id="uploadForm" class="space-y-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input type="file" accept=".pdf" class="hidden" id="fileInput">
+                    <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
+                        Drop your DARS PDF here or click to upload
+                    </label>
+                    <p class="text-sm text-gray-500 mt-2">Only PDF files are accepted</p>
+                </div>
+                <button type="submit" id="analyzeButton" disabled 
+                        class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg 
+                               hover:bg-blue-600 transition-colors disabled:opacity-50 
+                               disabled:cursor-not-allowed">
+                    Analyze DARS Report
+                </button>
+            </form>
         </div>
 
         <div id="results" class="hidden">
             <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Available Certificates</h2>
+                <div id="certificateList" class="space-y-4"></div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6 mt-8">
                 <h2 class="text-xl font-semibold mb-4">Course List</h2>
                 <div id="courseList" class="overflow-x-auto">
                     <table class="min-w-full table-auto">
@@ -40,6 +53,7 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script>
         function showUploadStatus(message, isSuccess) {
@@ -54,12 +68,14 @@
             statusDiv.classList.remove('hidden');
         }
 
-        async function processFile(file) {
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
             const formData = new FormData();
-            formData.append('file', file);
+            const fileInput = document.getElementById('fileInput');
+            formData.append('file', fileInput.files[0]);
 
             try {
-                showUploadStatus('Uploading...', true);
+                showUploadStatus('Processing your DARS report...', true);
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
@@ -71,20 +87,19 @@
                     return;
                 }
 
-                showUploadStatus('Upload Complete! Analyzing your courses...', true);
+                showUploadStatus('Analysis complete!', true);
                 displayResults(data);
             } catch (error) {
                 console.error('Error:', error);
                 showUploadStatus('An error occurred while processing the file.', false);
             }
-        }
+        };
 
         function displayResults(data) {
             document.getElementById('results').classList.remove('hidden');
             const courseTableBody = document.getElementById('courseTableBody');
             courseTableBody.innerHTML = '';
 
-            // Sort courses by term and department
             data.courses.sort((a, b) => {
                 if (a.term !== b.term) return a.term.localeCompare(b.term);
                 return a.department.localeCompare(b.department);
@@ -104,10 +119,21 @@
             });
         }
 
+        function handleFileSelect(file) {
+            const analyzeButton = document.getElementById('analyzeButton');
+            if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                showUploadStatus('File uploaded successfully! Click Analyze to process.', true);
+                analyzeButton.disabled = false;
+            } else {
+                showUploadStatus('Please select a PDF file.', false);
+                analyzeButton.disabled = true;
+            }
+        }
+
         // File input change handler
         document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                processFile(e.target.files[0]);
+                handleFileSelect(e.target.files[0]);
             }
         });
 
@@ -143,7 +169,8 @@
             const dt = e.dataTransfer;
             const files = dt.files;
             if (files.length > 0) {
-                processFile(files[0]);
+                document.getElementById('fileInput').files = files;
+                handleFileSelect(files[0]);
             }
         });
     </script>
